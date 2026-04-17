@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Environment
+.env
+.venv/
+venv/
+
+# Data
+data/chromadb/
+data/memory.db
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# gRPC generated
+*_pb2.py
+*_pb2_grpc.py
+*_pb2.pyi
+*_pb2_grpc.pyi
+
+# Docker
+.docker/
+
+# Logs
+logs/
+*.log
