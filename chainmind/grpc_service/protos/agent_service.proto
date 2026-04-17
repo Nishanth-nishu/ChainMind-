@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package chainmind.v1;
+
+// ChainMind Agent Service — High-performance gRPC interface
+service ChainMindService {
+    // Process a query through the multi-agent system
+    rpc ProcessQuery (QueryRequest) returns (QueryResponse);
+
+    // Stream query processing with real-time updates
+    rpc StreamQuery (QueryRequest) returns (stream QueryChunk);
+
+    // Get status of registered agents
+    rpc GetAgentStatus (AgentStatusRequest) returns (AgentStatusResponse);
+
+    // Health check (standard gRPC health)
+    rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+
+    // Search the knowledge base
+    rpc SearchKnowledgeBase (SearchRequest) returns (SearchResponse);
+}
+
+// === Query Messages ===
+
+message QueryRequest {
+    string query = 1;
+    string session_id = 2;
+    map<string, string> context = 3;
+    int32 max_steps = 4;
+    float temperature = 5;
+    string target_agent = 6;  // Optional: route to specific agent
+}
+
+message QueryResponse {
+    string task_id = 1;
+    string result = 2;
+    string status = 3;           // completed, failed
+    string source_agent = 4;
+    repeated ReasoningStep reasoning_trace = 5;
+    double latency_ms = 6;
+    string error = 7;
+}
+
+message QueryChunk {
+    string chunk_type = 1;       // thought, action, observation, result
+    string content = 2;
+    string agent = 3;
+    double timestamp = 4;
+}
+
+message ReasoningStep {
+    string step_type = 1;        // think, act, observe, verify, reflect
+    string content = 2;
+    string tool_name = 3;
+    string tool_output = 4;
+}
+
+// === Agent Status Messages ===
+
+message AgentStatusRequest {
+    string agent_id = 1;  // Empty = all agents
+}
+
+message AgentStatusResponse {
+    repeated AgentInfo agents = 1;
+}
+
+message AgentInfo {
+    string agent_id = 1;
+    string name = 2;
+    string role = 3;
+    repeated string capabilities = 4;
+    string status = 5;  // active, inactive
+}
+
+// === Health Check Messages ===
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+    string status = 1;           // healthy, degraded, unhealthy
+    bool is_ready = 2;
+    map<string, ComponentHealth> components = 3;
+}
+
+message ComponentHealth {
+    bool healthy = 1;
+    double latency_ms = 2;
+    string error = 3;
+}
+
+// === Knowledge Base Messages ===
+
+message SearchRequest {
+    string query = 1;
+    int32 top_k = 2;
+    string mode = 3;  // hybrid, vector, bm25
+}
+
+message SearchResponse {
+    repeated SearchResult results = 1;
+    int32 total_results = 2;
+}
+
+message SearchResult {
+    string doc_id = 1;
+    string content = 2;
+    double score = 3;
+    string retriever = 4;
+    map<string, string> metadata = 5;
+}
