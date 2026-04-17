@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chainmind-api
+  namespace: chainmind
+  labels:
+    app: chainmind
+    component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chainmind
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: chainmind
+        component: api
+    spec:
+      containers:
+        - name: chainmind-api
+          image: chainmind:latest
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+              name: http
+          envFrom:
+            - configMapRef:
+                name: chainmind-config
+            - secretRef:
+                name: chainmind-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: chainmind-data-pvc
