@@ -1,0 +1,42 @@
+[
+  {
+    "query": "What are the current inventory levels for SKU-001?",
+    "expected_agent": "inventory_management",
+    "expected_tool": "get_inventory_levels"
+  },
+  {
+    "query": "Forecast demand for Widget A over the next 30 days",
+    "expected_agent": "demand_forecasting",
+    "expected_tool": "get_demand_forecast"
+  },
+  {
+    "query": "Evaluate supplier Acme Components for reliability",
+    "expected_agent": "procurement",
+    "expected_tool": "get_supplier_info"
+  },
+  {
+    "query": "Track shipment for order ORD-1001",
+    "expected_agent": "logistics",
+    "expected_tool": "get_shipment_tracking"
+  },
+  {
+    "query": "Detect quality anomalies in demand metrics over the past 30 days",
+    "expected_agent": "quality_assurance",
+    "expected_tool": "detect_anomalies"
+  },
+  {
+    "query": "Calculate optimal reorder point for SKU-002 with 95% service level",
+    "expected_agent": "inventory_management",
+    "expected_tool": "calculate_reorder_point"
+  },
+  {
+    "query": "We're running low on Assembly Kit Y. Which suppliers can fulfill a rush order and what are the lead times?",
+    "expected_agents": ["inventory_management", "procurement"],
+    "notes": "Multi-agent query — should be decomposed by orchestrator"
+  },
+  {
+    "query": "Give me a full supply chain health report covering inventory, supplier reliability, and demand trends",
+    "expected_agents": ["inventory_management", "procurement", "demand_forecasting", "quality_assurance"],
+    "notes": "Complex orchestration query"
+  }
+]
