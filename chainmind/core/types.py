@@ -16,11 +16,13 @@ class LLMRequest(BaseModel):
 class LLMResponse(BaseModel):
     content: str
     usage: Optional[Dict[str, int]] = None
+    latency_ms: Optional[float] = None
 
 class MCPToolDefinition(BaseModel):
     name: str
     description: str
     parameters: Dict[str, Any]
+    required_params: List[str] = Field(default_factory=list)
 
 class MCPToolResult(BaseModel):
     output: str
@@ -40,7 +42,12 @@ class AgentCard(BaseModel):
     name: str
     description: str
     role: str
+    capabilities: List[str] = Field(default_factory=list)
     tools: List[str] = Field(default_factory=list)
+    
+    @property
+    def agent_id(self) -> str:
+        return self.name.lower().replace(" ", "_")
 
 class AgentContext(BaseModel):
     session_id: str = "default"
