@@ -12,10 +12,10 @@ class LocalProvider(ILLMProvider):
     Connects to http://0.0.0.0:8100/v1 by default.
     """
     
-    def __init__(self, base_url: str = "http://0.0.0.0:8100/v1", model_id: str = "chainmind-qwen"):
+    def __init__(self, base_url: str = "http://0.0.0.0:8100/v1", model_id: str = "chainmind-qwen", served_model_name: str = "chainmind-qwen"):
         # Uses an empty API key since vLLM does not require one formatably
         self.client = AsyncOpenAI(api_key="EMPTY", base_url=base_url)
-        self.model_name = os.getenv("VLLM_SERVED_NAME", model_id)
+        self.model_name = served_model_name
 
     async def generate(self, request: LLMRequest) -> LLMResponse:
         start_time = time.perf_counter()
