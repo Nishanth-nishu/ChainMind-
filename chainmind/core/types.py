@@ -45,6 +45,7 @@ class AgentCard(BaseModel):
 class AgentContext(BaseModel):
     session_id: str = "default"
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    conversation_history: List[LLMMessage] = Field(default_factory=list)
 
 class ReasoningStep(BaseModel):
     step_type: ReActStep
