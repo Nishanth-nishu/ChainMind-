@@ -26,13 +26,13 @@ class ResearchMCPServer(IMCPServer):
                     results = list(ddgs.text(query, max_results=3))
                 
                 if not results:
-                    return MCPToolResult(output="", error=f"No results found for query: {query}")
+                    return MCPToolResult(result="", success=False, error=f"No results found for query: {query}")
                     
                 formatted = [{"title": r.get("title"), "body": r.get("body")} for r in results]
-                return MCPToolResult(output=json.dumps(formatted))
+                return MCPToolResult(result=json.dumps(formatted), success=True)
                 
             else:
-                return MCPToolResult(output="", error=f"Unknown tool: {tool_name}")
+                return MCPToolResult(result="", success=False, error=f"Unknown tool: {tool_name}")
                 
         except Exception as e:
-            return MCPToolResult(output="", error=str(e))
+            return MCPToolResult(result="", success=False, error=str(e))

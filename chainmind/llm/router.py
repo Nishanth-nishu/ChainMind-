@@ -170,9 +170,10 @@ class LLMRouter:
             try:
                 # Execute through circuit breaker
                 response = await circuit_breaker.call(provider.generate, request)
+                tokens = response.usage.get("total_tokens", 0) if response.usage else 0
                 logger.debug(
                     f"LLM request served by {provider_key} "
-                    f"({response.latency_ms:.0f}ms, {response.usage.total_tokens} tokens)"
+                    f"({response.latency_ms:.0f}ms, {tokens} tokens)"
                 )
                 return response
 

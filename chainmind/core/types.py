@@ -25,7 +25,8 @@ class MCPToolDefinition(BaseModel):
     required_params: List[str] = Field(default_factory=list)
 
 class MCPToolResult(BaseModel):
-    output: str
+    result: Any
+    success: bool = True
     error: Optional[str] = None
 
 class MemoryEntry(BaseModel):

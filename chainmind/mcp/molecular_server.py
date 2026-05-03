@@ -30,7 +30,7 @@ class MolecularMCPServer(IMCPServer):
                 smiles = args.get("smiles", "")
                 mol = Chem.MolFromSmiles(smiles)
                 if mol is None:
-                    return MCPToolResult(output="", error=f"Invalid SMILES string: {smiles}")
+                    return MCPToolResult(result="", success=False, error=f"Invalid SMILES string: {smiles}")
                 
                 mw = Descriptors.MolWt(mol)
                 logp = Descriptors.MolLogP(mol)
@@ -47,17 +47,17 @@ class MolecularMCPServer(IMCPServer):
                     "hba": hba,
                     "passes_ro5": passes
                 }
-                return MCPToolResult(output=json.dumps(res))
+                return MCPToolResult(result=json.dumps(res), success=True)
                 
             elif tool_name == "get_canonical_smiles":
                 query = args.get("query", "")
                 compounds = pcp.get_compounds(query, 'name')
                 if not compounds:
-                    return MCPToolResult(output="", error=f"Compound not found for query: {query}")
-                return MCPToolResult(output=json.dumps({"name": query, "smiles": compounds[0].canonical_smiles}))
+                    return MCPToolResult(result="", success=False, error=f"Compound not found for query: {query}")
+                return MCPToolResult(result=json.dumps({"name": query, "smiles": compounds[0].canonical_smiles}), success=True)
                 
             else:
-                return MCPToolResult(output="", error=f"Unknown tool: {tool_name}")
+                return MCPToolResult(result="", success=False, error=f"Unknown tool: {tool_name}")
                 
         except Exception as e:
-            return MCPToolResult(output="", error=str(e))
+            return MCPToolResult(result="", success=False, error=str(e))
