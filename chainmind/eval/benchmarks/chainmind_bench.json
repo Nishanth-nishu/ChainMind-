@@ -1,0 +1,663 @@
+{
+  "name": "ChainMind-Bench",
+  "version": "1.0.0",
+  "description": "100-task evaluation benchmark for agentic drug discovery systems. Ground truths are deterministically computed from RDKit/BioPython or verifiable via public APIs.",
+  "categories": {
+    "A": {"name": "Molecular Property", "count": 40, "scorer": "numerical_or_boolean"},
+    "B": {"name": "Literature Retrieval", "count": 30, "scorer": "keyword_recall"},
+    "C": {"name": "Knowledge Graph", "count": 15, "scorer": "mermaid_validity"},
+    "D": {"name": "Multi-Step Chain", "count": 15, "scorer": "composite"}
+  },
+  "tasks": [
+    {
+      "id": "A001", "category": "A", "subcategory": "lipinski",
+      "query": "Does Aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O) pass Lipinski's Rule of 5? Report all four descriptors.",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 180.16, "logP": 1.24, "h_bond_donors": 1, "h_bond_acceptors": 4, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A002", "category": "A", "subcategory": "lipinski",
+      "query": "Does Ibuprofen (SMILES: CC(C)CC1=CC=C(C=C1)C(C)C(=O)O) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 206.28, "logP": 3.97, "h_bond_donors": 1, "h_bond_acceptors": 2, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A003", "category": "A", "subcategory": "lipinski",
+      "query": "Assess drug-likeness of Celecoxib (SMILES: CC1=CC=C(C=C1)C2=CC(=NN2C3=CC=C(C=C3)S(N)(=O)=O)C(F)(F)F). Does it pass Lipinski?",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 381.37, "violations": 0},
+      "tolerance": 0.1, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A004", "category": "A", "subcategory": "lipinski",
+      "query": "Evaluate whether Paclitaxel (SMILES: CC1=C2C(C(=O)C3(C(CC4C(C3C(C(=O)c5ccccc5)(C4OC(=O)c6ccccc6)O)OC(=O)C)OC(C)=O)O)OC(=O)C(CC(=O)c7ccccc7)NC(=O)c8ccccc8) passes Lipinski's Rule of 5.",
+      "ground_truth": {"passes_ro5": false, "violations": 3},
+      "tolerance": 0.1, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A005", "category": "A", "subcategory": "lipinski",
+      "query": "Does Caffeine (SMILES: CN1C=NC2=C1C(=O)N(C(=O)N2C)C) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 194.19, "logP": -0.07, "h_bond_donors": 0, "h_bond_acceptors": 3, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A006", "category": "A", "subcategory": "lipinski",
+      "query": "Assess drug-likeness of Metformin (SMILES: CN(C)C(=N)NC(=N)N). Does it pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 129.16, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A007", "category": "A", "subcategory": "lipinski",
+      "query": "Does Cyclosporine A (SMILES: CC[C@@H]1OC(=O)[C@H]([C@@H](CC[C@@H]([C@@H]([C@H](C(=O)[C@H](C(=O)N1)CC(=C)C(C)C)O)C)OC)C)C(C)C) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": false, "violations": 3},
+      "tolerance": 0.1, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A008", "category": "A", "subcategory": "lipinski",
+      "query": "Evaluate drug-likeness of Warfarin (SMILES: OC=1C(=O)c2ccccc2OC=1CC(=O)c1ccccc1). Does it pass Lipinski?",
+      "ground_truth": {"passes_ro5": true, "molecular_weight": 308.33, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A009", "category": "A", "subcategory": "molecular_weight",
+      "query": "What is the molecular weight of Ethanol (SMILES: CCO)?",
+      "ground_truth": {"molecular_weight": 46.07},
+      "tolerance": 0.02, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A010", "category": "A", "subcategory": "molecular_weight",
+      "query": "Calculate the molecular weight of Glucose (SMILES: C(C1C(C(C(C(O1)O)O)O)O)O).",
+      "ground_truth": {"molecular_weight": 180.16},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A011", "category": "A", "subcategory": "similarity",
+      "query": "Calculate the Tanimoto similarity between Aspirin (CC(=O)OC1=CC=CC=C1C(=O)O) and Ibuprofen (CC(C)CC1=CC=C(C=C1)C(C)C(=O)O) using Morgan fingerprints.",
+      "ground_truth": {"tanimoto_similarity_range": [0.07, 0.15]},
+      "tolerance": 0.05, "requires_tool": "calculate_similarity", "difficulty": "medium"
+    },
+    {
+      "id": "A012", "category": "A", "subcategory": "similarity",
+      "query": "What is the Tanimoto similarity between Aspirin (CC(=O)OC1=CC=CC=C1C(=O)O) and Salicylic acid (OC(=O)c1ccccc1O)?",
+      "ground_truth": {"tanimoto_similarity_range": [0.30, 0.55]},
+      "tolerance": 0.05, "requires_tool": "calculate_similarity", "difficulty": "medium"
+    },
+    {
+      "id": "A013", "category": "A", "subcategory": "similarity",
+      "query": "Calculate the Morgan fingerprint Tanimoto similarity between Caffeine (CN1C=NC2=C1C(=O)N(C(=O)N2C)C) and Theophylline (Cn1cnc2N(C(=O)Nc12)C(=O)N).",
+      "ground_truth": {"tanimoto_similarity_range": [0.30, 0.60]},
+      "tolerance": 0.05, "requires_tool": "calculate_similarity", "difficulty": "medium"
+    },
+    {
+      "id": "A014", "category": "A", "subcategory": "pubchem",
+      "query": "Search PubChem for Imatinib by name. Report its molecular formula, molecular weight, and CID.",
+      "ground_truth": {"formula": "C29H31N7O", "weight_range": [493.0, 494.0], "cid": 5291},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A015", "category": "A", "subcategory": "pubchem",
+      "query": "Look up Erlotinib in PubChem by name and report its molecular formula and weight.",
+      "ground_truth": {"formula": "C22H23N3O4", "weight_range": [393.0, 394.0]},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A016", "category": "A", "subcategory": "pubchem",
+      "query": "Search PubChem for Metformin and report its CID, formula, and molecular weight.",
+      "ground_truth": {"formula": "C4H11N5", "weight_range": [129.0, 130.0], "cid": 4091},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A017", "category": "A", "subcategory": "pubchem",
+      "query": "Find Caffeine in PubChem by name and report its molecular formula, weight, and CID.",
+      "ground_truth": {"formula": "C8H10N4O2", "weight_range": [194.0, 195.0], "cid": 2519},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A018", "category": "A", "subcategory": "conformer",
+      "query": "Generate a 3D conformer for Ethanol (SMILES: CCO) using ETKDG + MMFF94. Did MMFF94 converge?",
+      "ground_truth": {"mmff94_converged": true, "num_atoms_ge": 3},
+      "tolerance": 0.0, "requires_tool": "generate_3d_conformer", "difficulty": "easy"
+    },
+    {
+      "id": "A019", "category": "A", "subcategory": "conformer",
+      "query": "Generate a 3D conformer for Caffeine (SMILES: CN1C=NC2=C1C(=O)N(C(=O)N2C)C). Report atom count and whether MMFF94 converged.",
+      "ground_truth": {"mmff94_converged": true, "formula": "C8H10N4O2"},
+      "tolerance": 0.0, "requires_tool": "generate_3d_conformer", "difficulty": "easy"
+    },
+    {
+      "id": "A020", "category": "A", "subcategory": "conformer",
+      "query": "Generate a 3D conformer for Aspirin (SMILES: CC(=O)OC1=CC=CC=C1C(=O)O). Report whether force field optimization converged.",
+      "ground_truth": {"mmff94_converged": true},
+      "tolerance": 0.0, "requires_tool": "generate_3d_conformer", "difficulty": "easy"
+    },
+    {
+      "id": "A021", "category": "A", "subcategory": "lipinski",
+      "query": "Does Omeprazole (SMILES: COc1ccc2[nH]c(S(=O)Cc3ncc(C)c(OC)c3C)nc2c1) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A022", "category": "A", "subcategory": "lipinski",
+      "query": "Assess drug-likeness of Atorvastatin (SMILES: CC(C)c1c(C(=O)Nc2ccccc2)c(c(-c2ccc(F)cc2)n1CC[C@@H](O)C[C@@H](O)CC(=O)O)c1ccccc1). Does it pass Lipinski?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A023", "category": "A", "subcategory": "similarity",
+      "query": "Calculate the Tanimoto similarity between Metformin (CN(C)C(=N)NC(=N)N) and Phenformin (CN(C)C(=N)NC(=N)N). Are they structurally similar?",
+      "ground_truth": {"tanimoto_similarity_range": [0.50, 1.0]},
+      "tolerance": 0.1, "requires_tool": "calculate_similarity", "difficulty": "medium"
+    },
+    {
+      "id": "A024", "category": "A", "subcategory": "pubchem",
+      "query": "Search PubChem for Sildenafil by name. What is its molecular formula and weight?",
+      "ground_truth": {"formula": "C22H30N6O4S", "weight_range": [474.0, 475.0]},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A025", "category": "A", "subcategory": "lipinski",
+      "query": "Does Vancomycin (a glycopeptide antibiotic with MW ~1449 Da) pass Lipinski's Rule of 5? Use SMILES: O=C(NC(C(=O)NC1C(=O)NC(C(=O)O)c2cc(Oc3cc4cc(Oc5ccc(cc5Cl)C5NC(=O)C(NC(=O)C(NC(=O)C6CCCN6C(=O)C(NC1=O)c1ccc(O)c(Cl)c1)c1ccc(O)cc1OC5=O)c1cc(Oc3c4)c(O)cc1O)c(O)cc2OC5C(O)C(O)C(O)CO5)CCN)C1=O",
+      "ground_truth": {"passes_ro5": false, "violations": 3},
+      "tolerance": 0, "requires_tool": "assess_lipinski_rules", "difficulty": "hard"
+    },
+    {
+      "id": "A026", "category": "A", "subcategory": "lipinski",
+      "query": "Evaluate the drug-likeness of Leflunomide (SMILES: O=C(Cc1c(C)noc1-c1ccc(F)cc1)Nc1cccc(C(F)(F)F)c1). Does it pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A027", "category": "A", "subcategory": "molecular_weight",
+      "query": "What is the molecular weight of Benzene (SMILES: c1ccccc1)?",
+      "ground_truth": {"molecular_weight": 78.11},
+      "tolerance": 0.02, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A028", "category": "A", "subcategory": "molecular_weight",
+      "query": "Calculate the molecular weight of Dopamine (SMILES: NCCc1ccc(O)c(O)c1).",
+      "ground_truth": {"molecular_weight": 153.18},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A029", "category": "A", "subcategory": "similarity",
+      "query": "How similar is Dopamine (NCCc1ccc(O)c(O)c1) to Epinephrine (CNC[C@@H](O)c1ccc(O)c(O)c1) using Tanimoto + Morgan fingerprints?",
+      "ground_truth": {"tanimoto_similarity_range": [0.25, 0.65]},
+      "tolerance": 0.05, "requires_tool": "calculate_similarity", "difficulty": "medium"
+    },
+    {
+      "id": "A030", "category": "A", "subcategory": "pubchem",
+      "query": "Look up Paracetamol (Acetaminophen) in PubChem by name. Report its CID, formula, and weight.",
+      "ground_truth": {"formula": "C8H9NO2", "weight_range": [151.0, 152.0], "cid": 1983},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A031", "category": "A", "subcategory": "lipinski",
+      "query": "Does Naproxen (SMILES: CC(C(=O)O)c1ccc2cc(OC)ccc2c1) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A032", "category": "A", "subcategory": "lipinski",
+      "query": "Assess Cisplatin (SMILES: N.N.Cl[Pt]Cl) for drug-likeness using Lipinski criteria. What are its descriptors?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A033", "category": "A", "subcategory": "conformer",
+      "query": "Generate a 3D conformer for Dopamine (SMILES: NCCc1ccc(O)c(O)c1). Report the formula and whether MMFF94 optimization converged.",
+      "ground_truth": {"mmff94_converged": true, "formula": "C8H11NO2"},
+      "tolerance": 0.0, "requires_tool": "generate_3d_conformer", "difficulty": "easy"
+    },
+    {
+      "id": "A034", "category": "A", "subcategory": "similarity",
+      "query": "What is the Tanimoto similarity between Erlotinib (C22H23N3O4) and Gefitinib (C22H24ClFN4O3) SMILES? Use: Erlotinib=C#Cc1cccc(Nc2ncnc3cc(OCCO)c(OCC)cc23)c1, Gefitinib=COc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OCCCN1CCOCC1",
+      "ground_truth": {"tanimoto_similarity_range": [0.20, 0.55]},
+      "tolerance": 0.05, "requires_tool": "calculate_similarity", "difficulty": "hard"
+    },
+    {
+      "id": "A035", "category": "A", "subcategory": "lipinski",
+      "query": "Evaluate drug-likeness of Morphine (SMILES: [C@@H]1([C@H]2CC3=CC(=C(C=C3[C@]45CCN([C@H]([C@@]4(CCO5)O2)C1)C)O)O). Does it pass Lipinski?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A036", "category": "A", "subcategory": "lipinski",
+      "query": "Does Tamoxifen (SMILES: CC(/C=C/c1ccc(OCCN(C)C)cc1)=C(\\c1ccccc1)c1ccccc1) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A037", "category": "A", "subcategory": "pubchem",
+      "query": "Search PubChem for Ampicillin by name and report its molecular formula, weight, and CID.",
+      "ground_truth": {"formula": "C16H19N3O4S", "weight_range": [349.0, 350.0]},
+      "tolerance": 0.5, "requires_tool": "pubchem_search", "difficulty": "easy"
+    },
+    {
+      "id": "A038", "category": "A", "subcategory": "molecular_weight",
+      "query": "What is the molecular weight of Serotonin (SMILES: NCCc1c[nH]c2ccc(O)cc12)?",
+      "ground_truth": {"molecular_weight": 176.21},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "easy"
+    },
+    {
+      "id": "A039", "category": "A", "subcategory": "lipinski",
+      "query": "Does Oseltamivir (Tamiflu, SMILES: CCOC(=O)C1=C[C@@H](OC(CC)CC)[C@H](NC(C)=O)[C@@H](N)C1) pass Lipinski's Rule of 5?",
+      "ground_truth": {"passes_ro5": true, "violations": 0},
+      "tolerance": 0.05, "requires_tool": "assess_lipinski_rules", "difficulty": "medium"
+    },
+    {
+      "id": "A040", "category": "A", "subcategory": "conformer",
+      "query": "Generate a 3D conformer for Naproxen (SMILES: CC(C(=O)O)c1ccc2cc(OC)ccc2c1). Report atom count and MMFF94 convergence.",
+      "ground_truth": {"mmff94_converged": true},
+      "tolerance": 0.0, "requires_tool": "generate_3d_conformer", "difficulty": "medium"
+    },
+    {
+      "id": "B001", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for recent papers (2024-2025) on graph neural networks for molecular property prediction. List at least 3 paper titles.",
+      "ground_truth": {"expected_keywords": ["GNN", "molecular", "graph", "property", "prediction"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B002", "category": "B", "subcategory": "arxiv",
+      "query": "Find ArXiv preprints on transformer models for ADMET prediction published in 2024-2025.",
+      "ground_truth": {"expected_keywords": ["transformer", "ADMET", "absorption", "prediction", "molecule"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B003", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for papers on diffusion models for drug molecule generation (2023-2025).",
+      "ground_truth": {"expected_keywords": ["diffusion", "drug", "molecule", "generation", "3D"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B004", "category": "B", "subcategory": "arxiv",
+      "query": "Find recent ArXiv papers on multi-agent systems for scientific discovery.",
+      "ground_truth": {"expected_keywords": ["agent", "multi-agent", "scientific", "LLM", "tool"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B005", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for papers on LLM tool use and ReAct reasoning for chemistry (2023-2025).",
+      "ground_truth": {"expected_keywords": ["LLM", "tool", "ReAct", "chemistry", "agent"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B006", "category": "B", "subcategory": "arxiv",
+      "query": "Find ArXiv papers on equivariant neural networks for 3D molecular structure prediction.",
+      "ground_truth": {"expected_keywords": ["equivariant", "3D", "molecular", "geometry", "SE(3)"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "hard"
+    },
+    {
+      "id": "B007", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for papers on de novo drug design using reinforcement learning (2024).",
+      "ground_truth": {"expected_keywords": ["de novo", "reinforcement learning", "drug design", "molecule", "generation"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B008", "category": "B", "subcategory": "arxiv",
+      "query": "Find recent ArXiv papers on protein-ligand binding affinity prediction.",
+      "ground_truth": {"expected_keywords": ["binding affinity", "protein", "ligand", "prediction", "docking"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B009", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for PROTAC molecular glue targeted protein degradation papers (2023-2025).",
+      "ground_truth": {"expected_keywords": ["PROTAC", "degradation", "protein", "E3 ligase", "ubiquitin"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "hard"
+    },
+    {
+      "id": "B010", "category": "B", "subcategory": "arxiv",
+      "query": "Find ArXiv papers discussing foundation models for drug discovery published in 2024.",
+      "ground_truth": {"expected_keywords": ["foundation model", "drug discovery", "pre-trained", "molecular", "large language model"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B011", "category": "B", "subcategory": "tdc",
+      "query": "What is the state-of-the-art model and score for the TDC Caco2_Wang benchmark?",
+      "ground_truth": {"expected_keywords": ["Caco2", "MAE", "scaffold", "absorption", "ContextPred"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B012", "category": "B", "subcategory": "tdc",
+      "query": "What is the SOTA model for TDC HIA_Hou Human Intestinal Absorption? Report the metric and score.",
+      "ground_truth": {"expected_keywords": ["HIA", "AUROC", "AttentiveFP", "absorption", "intestinal"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B013", "category": "B", "subcategory": "tdc",
+      "query": "Retrieve TDC benchmark information for BBB_Martins blood-brain barrier penetration. What is the SOTA score?",
+      "ground_truth": {"expected_keywords": ["BBB", "blood-brain", "AUROC", "XGBoost", "distribution"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B014", "category": "B", "subcategory": "tdc",
+      "query": "What does the TDC PPBR_AZ benchmark measure? What is the SOTA model and score?",
+      "ground_truth": {"expected_keywords": ["PPBR", "plasma protein binding", "MAE", "AttentiveFP", "distribution"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B015", "category": "B", "subcategory": "tdc",
+      "query": "Retrieve TDC Solubility_AqSolDB benchmark details. What is the SOTA MAE score?",
+      "ground_truth": {"expected_keywords": ["solubility", "AqSolDB", "MAE", "AttentiveFP", "absorption"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B016", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for recent reviews on machine learning for ADMET prediction in drug discovery.",
+      "ground_truth": {"expected_keywords": ["ADMET", "machine learning", "prediction", "drug discovery", "review"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B017", "category": "B", "subcategory": "web_search",
+      "query": "Find web resources on ChemCrow — the LLM chemistry agent from 2023. What tools does it use?",
+      "ground_truth": {"expected_keywords": ["ChemCrow", "GPT-4", "tools", "chemistry", "RDKit"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B018", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for information on AlphaFold3 and its applications to drug discovery.",
+      "ground_truth": {"expected_keywords": ["AlphaFold", "protein structure", "drug", "DeepMind", "prediction"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B019", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for MCP (Model Context Protocol) specification and how it enables tool use for LLMs.",
+      "ground_truth": {"expected_keywords": ["MCP", "protocol", "tool", "LLM", "Anthropic"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B020", "category": "B", "subcategory": "web_search",
+      "query": "Find web articles about Therapeutics Data Commons (TDC) benchmark suite for drug discovery.",
+      "ground_truth": {"expected_keywords": ["TDC", "Therapeutics Data Commons", "benchmark", "ADMET", "drug"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_literature", "difficulty": "easy"
+    },
+    {
+      "id": "B021", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for papers on molecular fingerprints vs graph neural networks for property prediction.",
+      "ground_truth": {"expected_keywords": ["fingerprint", "GNN", "Morgan", "property", "comparison"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B022", "category": "B", "subcategory": "arxiv",
+      "query": "Find ArXiv papers on Qwen or LLaMA local LLMs used for scientific reasoning tasks (2024).",
+      "ground_truth": {"expected_keywords": ["Qwen", "local", "LLM", "scientific", "reasoning"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B023", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for information on Lipinski's Rule of Five and its importance in drug discovery.",
+      "ground_truth": {"expected_keywords": ["Lipinski", "Rule of 5", "oral bioavailability", "drug-likeness", "MW"], "min_keyword_recall": 0.6},
+      "requires_tool": "search_literature", "difficulty": "easy"
+    },
+    {
+      "id": "B024", "category": "B", "subcategory": "arxiv",
+      "query": "Find recent ArXiv papers on multi-agent LLM frameworks for scientific literature review.",
+      "ground_truth": {"expected_keywords": ["LLM", "agent", "literature", "review", "scientific"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "medium"
+    },
+    {
+      "id": "B025", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for papers on hallucination detection in LLMs applied to chemistry or biology.",
+      "ground_truth": {"expected_keywords": ["hallucination", "LLM", "chemistry", "factual", "detection"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "hard"
+    },
+    {
+      "id": "B026", "category": "B", "subcategory": "tdc",
+      "query": "What is the TDC Lipophilicity_AstraZeneca benchmark? What does it measure and what is the SOTA MAE?",
+      "ground_truth": {"expected_keywords": ["Lipophilicity", "LogD", "MAE", "AstraZeneca", "ContextPred"], "min_keyword_recall": 0.6},
+      "requires_tool": "fetch_tdc_benchmark", "difficulty": "easy"
+    },
+    {
+      "id": "B027", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for Agent-to-Agent (A2A) protocol specification for inter-agent communication.",
+      "ground_truth": {"expected_keywords": ["A2A", "agent", "protocol", "communication", "Google"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B028", "category": "B", "subcategory": "arxiv",
+      "query": "Find ArXiv papers on EGFR kinase inhibitors and their mechanisms discovered via computational methods (2023-2025).",
+      "ground_truth": {"expected_keywords": ["EGFR", "kinase", "inhibitor", "computational", "binding"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "hard"
+    },
+    {
+      "id": "B029", "category": "B", "subcategory": "web_search",
+      "query": "Search the web for vLLM inference optimization techniques for local LLM serving.",
+      "ground_truth": {"expected_keywords": ["vLLM", "inference", "throughput", "GPU", "optimization"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_literature", "difficulty": "medium"
+    },
+    {
+      "id": "B030", "category": "B", "subcategory": "arxiv",
+      "query": "Search ArXiv for recent papers on AI safety and alignment for autonomous scientific agents.",
+      "ground_truth": {"expected_keywords": ["safety", "alignment", "autonomous", "agent", "scientific"], "min_keyword_recall": 0.5},
+      "requires_tool": "search_arxiv", "difficulty": "hard"
+    },
+    {
+      "id": "C001", "category": "C", "subcategory": "mechanism",
+      "query": "Generate a Knowledge Graph explaining how Targeted Protein Degradation (PROTAC) works. Include PROTAC, Target Protein, E3 Ligase, Ubiquitin, Proteasome as nodes.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["PROTAC", "E3 Ligase", "ubiquitin", "proteasome", "degradation"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C002", "category": "C", "subcategory": "pipeline",
+      "query": "Create a Knowledge Graph showing the ADMET prediction pipeline from SMILES input → featurization → model → ADMET scores.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["SMILES", "featurization", "ADMET", "prediction", "model"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C003", "category": "C", "subcategory": "mechanism",
+      "query": "Generate a Knowledge Graph showing how Graph Neural Networks process molecular graphs: atoms → message passing → aggregation → property predictions.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["atom", "message passing", "GNN", "graph", "property"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C004", "category": "C", "subcategory": "mechanism",
+      "query": "Create a Knowledge Graph explaining drug resistance mechanisms: target mutation, efflux pumps, metabolic inactivation, and drug target bypass.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["resistance", "mutation", "efflux", "metabolic", "drug"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "hard"
+    },
+    {
+      "id": "C005", "category": "C", "subcategory": "pipeline",
+      "query": "Generate a Knowledge Graph for the drug discovery pipeline: target identification → hit discovery → lead optimization → preclinical → clinical trials.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["target", "hit", "lead", "clinical", "preclinical"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C006", "category": "C", "subcategory": "mechanism",
+      "query": "Create a Knowledge Graph showing how Tyrosine Kinase Inhibitors (TKIs) work: drug → binds ATP pocket → blocks phosphorylation → inhibits signaling → apoptosis.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["kinase", "ATP", "phosphorylation", "signaling", "inhibitor"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C007", "category": "C", "subcategory": "pipeline",
+      "query": "Generate a Knowledge Graph showing the Lipinski Rule of 5 evaluation: SMILES → MW check → LogP check → HBD check → HBA check → drug-likeness verdict.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["SMILES", "MW", "LogP", "HBD", "drug-likeness"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C008", "category": "C", "subcategory": "mechanism",
+      "query": "Create a Knowledge Graph explaining CRISPR-Cas9 target validation: guide RNA → Cas9 binds → DNA cut → gene knockout → phenotypic assessment.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["CRISPR", "guide RNA", "Cas9", "DNA", "gene"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "hard"
+    },
+    {
+      "id": "C009", "category": "C", "subcategory": "pipeline",
+      "query": "Generate a Knowledge Graph for ChainMind's architecture: User Query → Orchestrator → A2A Protocol → Specialist Agents → MCP Tools → Response.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["orchestrator", "agent", "MCP", "A2A", "tool"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C010", "category": "C", "subcategory": "mechanism",
+      "query": "Create a Knowledge Graph showing how blood-brain barrier penetration works for drugs: lipophilicity, molecular weight, efflux transporters (P-gp), active transport.",
+      "ground_truth": {"min_edges": 5, "required_concepts": ["BBB", "lipophilicity", "MW", "P-glycoprotein", "transport"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C011", "category": "C", "subcategory": "mechanism",
+      "query": "Generate a Knowledge Graph for the ReAct reasoning loop: Observe → Think → Act (tool use) → Observe result → repeat until converged.",
+      "ground_truth": {"min_edges": 4, "required_concepts": ["observe", "think", "act", "tool", "reason"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C012", "category": "C", "subcategory": "pipeline",
+      "query": "Create a Knowledge Graph showing how molecular similarity search works: query SMILES → Morgan fingerprint → Tanimoto → ranked candidates.",
+      "ground_truth": {"min_edges": 4, "required_concepts": ["SMILES", "Morgan", "Tanimoto", "fingerprint", "similarity"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C013", "category": "C", "subcategory": "mechanism",
+      "query": "Generate a Knowledge Graph for cytochrome P450 drug metabolism: drug → CYP450 oxidation → metabolite → excretion or toxicity.",
+      "ground_truth": {"min_edges": 4, "required_concepts": ["CYP450", "metabolism", "metabolite", "drug", "liver"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "medium"
+    },
+    {
+      "id": "C014", "category": "C", "subcategory": "pipeline",
+      "query": "Create a Knowledge Graph explaining the MCP (Model Context Protocol): LLM → requests tool → MCP server → tool execution → result returned to LLM.",
+      "ground_truth": {"min_edges": 4, "required_concepts": ["MCP", "LLM", "tool", "server", "protocol"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "C015", "category": "C", "subcategory": "mechanism",
+      "query": "Generate a Knowledge Graph showing Short-Term Memory and Long-Term Memory in the ChainMind agent: query → STM recall → LTM retrieval → context augmentation → response.",
+      "ground_truth": {"min_edges": 4, "required_concepts": ["STM", "LTM", "memory", "retrieval", "context"]},
+      "requires_tool": "generate_knowledge_graph", "difficulty": "easy"
+    },
+    {
+      "id": "D001", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Search PubChem for Imatinib and then assess whether its SMILES is drug-like using Lipinski's Rule of 5.",
+      "ground_truth": {
+        "step1": {"tool": "pubchem_search", "expected_smiles_contains": "Imatinib"},
+        "step2": {"tool": "assess_lipinski_rules", "passes_ro5": true, "violations": 0}
+      },
+      "requires_tools": ["pubchem_search", "assess_lipinski_rules"], "difficulty": "medium"
+    },
+    {
+      "id": "D002", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Find the SMILES for Erlotinib on PubChem, then calculate its Tanimoto similarity to Gefitinib (SMILES: COc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OCCCN1CCOCC1).",
+      "ground_truth": {
+        "step1": {"tool": "pubchem_search", "query": "Erlotinib"},
+        "step2": {"tool": "calculate_similarity", "tanimoto_range": [0.20, 0.60]}
+      },
+      "requires_tools": ["pubchem_search", "calculate_similarity"], "difficulty": "hard"
+    },
+    {
+      "id": "D003", "category": "D", "subcategory": "research_then_explain",
+      "query": "Search ArXiv for papers on PROTAC-based targeted protein degradation, then generate a Knowledge Graph showing how PROTACs work.",
+      "ground_truth": {
+        "step1": {"tool": "search_arxiv", "expected_keywords": ["PROTAC", "degradation", "E3 ligase"]},
+        "step2": {"tool": "generate_knowledge_graph", "min_edges": 4}
+      },
+      "requires_tools": ["search_arxiv", "generate_knowledge_graph"], "difficulty": "hard"
+    },
+    {
+      "id": "D004", "category": "D", "subcategory": "analyze_then_compare",
+      "query": "Calculate Lipinski properties for both Aspirin (CC(=O)OC1=CC=CC=C1C(=O)O) and Ibuprofen (CC(C)CC1=CC=C(C=C1)C(C)C(=O)O), then compare which is more drug-like.",
+      "ground_truth": {
+        "step1": {"tool": "assess_lipinski_rules", "smiles": "CC(=O)OC1=CC=CC=C1C(=O)O", "passes": true},
+        "step2": {"tool": "assess_lipinski_rules", "smiles": "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O", "passes": true},
+        "comparison": "both_pass"
+      },
+      "requires_tools": ["assess_lipinski_rules"], "difficulty": "medium"
+    },
+    {
+      "id": "D005", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Search TDC for the Caco2_Wang benchmark, then search ArXiv for recent papers that beat the SOTA score.",
+      "ground_truth": {
+        "step1": {"tool": "fetch_tdc_benchmark", "expected_keywords": ["Caco2", "MAE", "ContextPred"]},
+        "step2": {"tool": "search_arxiv", "expected_keywords": ["Caco2", "absorption", "prediction"]}
+      },
+      "requires_tools": ["fetch_tdc_benchmark", "search_arxiv"], "difficulty": "hard"
+    },
+    {
+      "id": "D006", "category": "D", "subcategory": "analyze_then_compare",
+      "query": "Generate 3D conformers for Caffeine and Aspirin, then compare their molecular weights.",
+      "ground_truth": {
+        "step1": {"tool": "generate_3d_conformer", "smiles": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C", "formula": "C8H10N4O2"},
+        "step2": {"tool": "generate_3d_conformer", "smiles": "CC(=O)OC1=CC=CC=C1C(=O)O", "formula": "C9H8O4"},
+        "comparison": "caffeine_heavier_false"
+      },
+      "requires_tools": ["generate_3d_conformer"], "difficulty": "medium"
+    },
+    {
+      "id": "D007", "category": "D", "subcategory": "research_then_explain",
+      "query": "Search the web for EGFR inhibitors in lung cancer treatment, then create a Knowledge Graph showing the EGFR signaling pathway and how inhibitors block it.",
+      "ground_truth": {
+        "step1": {"tool": "search_literature", "expected_keywords": ["EGFR", "inhibitor", "lung", "cancer"]},
+        "step2": {"tool": "generate_knowledge_graph", "min_edges": 4, "required_concepts": ["EGFR", "inhibitor", "signaling"]}
+      },
+      "requires_tools": ["search_literature", "generate_knowledge_graph"], "difficulty": "hard"
+    },
+    {
+      "id": "D008", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Look up Paracetamol in PubChem, then assess its Lipinski drug-likeness using the retrieved SMILES.",
+      "ground_truth": {
+        "step1": {"tool": "pubchem_search", "query": "Paracetamol"},
+        "step2": {"tool": "assess_lipinski_rules", "passes_ro5": true, "violations": 0}
+      },
+      "requires_tools": ["pubchem_search", "assess_lipinski_rules"], "difficulty": "medium"
+    },
+    {
+      "id": "D009", "category": "D", "subcategory": "analyze_then_compare",
+      "query": "Calculate the Tanimoto similarity between Aspirin and Paracetamol, then search ArXiv for papers on NSAID vs acetaminophen selectivity profiles.",
+      "ground_truth": {
+        "step1": {"tool": "calculate_similarity", "tanimoto_range": [0.0, 0.3]},
+        "step2": {"tool": "search_arxiv", "expected_keywords": ["NSAID", "acetaminophen", "COX", "selectivity"]}
+      },
+      "requires_tools": ["calculate_similarity", "search_arxiv"], "difficulty": "hard"
+    },
+    {
+      "id": "D010", "category": "D", "subcategory": "research_then_explain",
+      "query": "Find a TDC benchmark for blood-brain barrier penetration, then generate a Knowledge Graph explaining the BBB permeability mechanism.",
+      "ground_truth": {
+        "step1": {"tool": "fetch_tdc_benchmark", "expected_keywords": ["BBB", "blood-brain", "AUROC"]},
+        "step2": {"tool": "generate_knowledge_graph", "min_edges": 4, "required_concepts": ["BBB", "lipophilicity", "transport"]}
+      },
+      "requires_tools": ["fetch_tdc_benchmark", "generate_knowledge_graph"], "difficulty": "hard"
+    },
+    {
+      "id": "D011", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Search ArXiv for papers on drug-likeness assessment, then assess whether Sildenafil (SMILES: CCCC1=NN(C)C(=C1C(=O)NCC2=CC(=CC=C2OCC)S(=O)(=O)N3CCN(CC3)C)c4cccc(c4)N) passes Lipinski's Rule of 5.",
+      "ground_truth": {
+        "step1": {"tool": "search_arxiv", "expected_keywords": ["drug-likeness", "Lipinski", "oral", "bioavailability"]},
+        "step2": {"tool": "assess_lipinski_rules", "passes_ro5": true}
+      },
+      "requires_tools": ["search_arxiv", "assess_lipinski_rules"], "difficulty": "hard"
+    },
+    {
+      "id": "D012", "category": "D", "subcategory": "analyze_then_compare",
+      "query": "Find the molecular weight of Caffeine and Dopamine, then determine which is heavier and by how much.",
+      "ground_truth": {
+        "step1_caffeine_mw": 194.19,
+        "step2_dopamine_mw": 153.18,
+        "heavier": "caffeine",
+        "difference_range": [40.0, 42.0]
+      },
+      "requires_tools": ["assess_lipinski_rules"], "difficulty": "medium"
+    },
+    {
+      "id": "D013", "category": "D", "subcategory": "research_then_explain",
+      "query": "Look up the TDC solubility benchmark, then create a Knowledge Graph explaining why aqueous solubility matters in drug discovery.",
+      "ground_truth": {
+        "step1": {"tool": "fetch_tdc_benchmark", "expected_keywords": ["solubility", "AqSolDB", "MAE"]},
+        "step2": {"tool": "generate_knowledge_graph", "min_edges": 4, "required_concepts": ["solubility", "bioavailability", "absorption"]}
+      },
+      "requires_tools": ["fetch_tdc_benchmark", "generate_knowledge_graph"], "difficulty": "medium"
+    },
+    {
+      "id": "D014", "category": "D", "subcategory": "search_then_analyze",
+      "query": "Search PubChem for Erlotinib, assess its drug-likeness using Lipinski criteria, and determine if it is suitable for oral administration.",
+      "ground_truth": {
+        "step1": {"tool": "pubchem_search", "query": "Erlotinib"},
+        "step2": {"tool": "assess_lipinski_rules", "passes_ro5": true, "violations": 0}
+      },
+      "requires_tools": ["pubchem_search", "assess_lipinski_rules"], "difficulty": "medium"
+    },
+    {
+      "id": "D015", "category": "D", "subcategory": "analyze_then_compare",
+      "query": "Generate 3D conformers for both Caffeine and Aspirin. Compare which molecule has more atoms and report whether both MMFF94 optimizations converged.",
+      "ground_truth": {
+        "caffeine_converged": true,
+        "aspirin_converged": true,
+        "more_atoms": "caffeine_with_H_added"
+      },
+      "requires_tools": ["generate_3d_conformer"], "difficulty": "medium"
+    }
+  ]
+}

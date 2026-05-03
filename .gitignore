@@ -1,0 +1,7 @@
+# Ignore venv and results
+.venv/
+__pycache__/
+*.log
+results/
+logs/
+.DS_Store

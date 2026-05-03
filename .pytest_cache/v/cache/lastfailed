@@ -1,0 +1,9 @@
+{
+  "tests/integration/test_mcp_tools.py::TestSupplyChainMCPServer::test_unknown_tool_returns_error": true,
+  "tests/integration/test_mcp_tools.py::TestSupplyChainMCPServer::test_missing_required_param": true,
+  "tests/unit/test_a2a_protocol.py::TestAgentRegistry::test_register_agent": true,
+  "tests/integration/test_mcp_tools.py::TestMolecularMCPServer": true,
+  "tests/integration/test_mcp_tools.py::TestResearchMCPServer": true,
+  "tests/integration/test_mcp_tools.py::TestChainMindBench": true,
+  "tests/integration/test_mcp_tools.py::TestChainMindBench::test_scorer_cat_a_perfect_answer": true
+}
