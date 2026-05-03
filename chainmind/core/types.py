@@ -64,5 +64,6 @@ class TaskResponse(BaseModel):
     source_agent: str
     status: TaskStatus
     result: Optional[str] = None
+    error: Optional[str] = None
     reasoning_trace: Optional[List[ReasoningStep]] = None
     latency_ms: Optional[float] = None
