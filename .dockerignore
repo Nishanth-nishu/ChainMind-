@@ -1,0 +1,42 @@
+# ── Model weights & caches (too large for image, mounted at runtime) ──────────
+hf_cache/
+.home_cache_migration/
+*.safetensors
+*.bin
+*.gguf
+
+# ── Run artifacts ─────────────────────────────────────────────────────────────
+run_v*/
+results/
+logs/
+*.log
+*.jsonl.bak
+
+# ── Python artifacts ──────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Development + IDE ─────────────────────────────────────────────────────────
+.git/
+.gitignore
+.env
+*.sif
+*.img
+
+# ── Large data files (downloaded at runtime) ──────────────────────────────────
+data/mol_instructions/
+data/smol_instruct/
+data/toolbench/
+models/
+
+# ── OS artifacts ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
