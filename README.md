@@ -5,6 +5,8 @@
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Benchmark: ChainMind-Bench](https://img.shields.io/badge/Benchmark-ChainMind--Bench%20v1.0-orange)](chainmind/eval/benchmarks/README.md)
+[![Docker](https://img.shields.io/badge/Docker-nishanthr23%2Fchainmind-blue)](https://hub.docker.com/r/nishanthr23/chainmind)
+[![NeurIPS 2026 AI4Science](https://img.shields.io/badge/Target-NeurIPS%202026%20AI4Science-red)](https://ai4sciencecommunity.github.io)
 
 ---
 
@@ -54,6 +56,7 @@ MCP server. Cross-agent tool contamination is a controlled variable in the ablat
 
 ## Installation
 
+### Option A — Local (SLURM / bare metal)
 ```bash
 # 1. Clone and create virtual environment
 git clone https://github.com/Nishanth-nishu/ChainMind-.git
@@ -65,11 +68,29 @@ pip install -e ".[dev]"
 
 # 3. Configure environment
 cp .env.example .env
-# Edit .env: set VLLM_BASE_URL or OPENAI_API_KEY as needed
+# Edit .env: set VLLM_BASE_URL (default: http://0.0.0.0:8100/v1)
 
-# 4. (Optional) Start local vLLM server
+# 4. Start local vLLM server (Qwen2.5-7B)
 bash scripts/start_vllm_optimized.sh
 ```
+
+### Option B — Docker / Singularity (any SLURM node, zero setup)
+```bash
+# Pull pre-built image (CUDA 12.1 + vLLM + Unsloth + RDKit)
+singularity pull docker://nishanthr23/chainmind:latest
+
+# Run benchmark on any SLURM node
+singularity exec --nv \
+    --bind /scratch/nishanth.r:/scratch/nishanth.r \
+    chainmind_latest.sif \
+    bash /scratch/nishanth.r/sys_elvle_ai/run_full_selfcontained.sh
+
+# Or use the helper script
+bash scripts/pull_singularity.sh
+```
+
+> **CI/CD**: Docker image auto-builds on every push to `master` via GitHub Actions (`.github/workflows/docker.yml`).
+> To enable: add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` to GitHub repo secrets.
 
 ---
 
@@ -218,6 +239,31 @@ This system targets **NeurIPS 2026 AI4Science Workshop** and makes three claims:
 3. **Benchmark**: ChainMind-Bench — 100 tasks with deterministic ground-truth answers
    spanning Lipinski analysis, molecular similarity, literature retrieval, KG generation,
    and multi-step chains. Fully reproducible from public APIs and RDKit.
+
+4. **Fine-Tuning**: Domain-specialist QLoRA SFT (EXP010) on ChainMind traces shows
+   ~16% TSR improvement over the base model, with largest gains in Cat-A (molecular
+   property) and Cat-C (knowledge graph generation).
+
+---
+
+## Critical Bugs Fixed (2026-05-08)
+
+The following bugs were discovered via `git diff main..master` and live log inspection.
+All 9 are now fixed in the `master` branch:
+
+| # | File | Bug | Impact |
+|---|------|-----|--------|
+| 1 | `core/types.py` | `LLMRequest` missing `system_prompt` field | **All Cat-A/C/D scored 0%** |
+| 2 | `llm/local_provider.py` | `system_prompt` never injected into messages | Model used default Qwen prompt |
+| 3 | `agents/base_agent.py` | Reflexion call missing `system_prompt` | Reflexion degraded |
+| 4 | `core/types.py` | `TaskRequest` missing `parent_task_id`, `target_agent` | A2A routing broken |
+| 5 | `agents/orchestrator.py` | `context=task.context` — field doesn't exist | All orchestrator tasks crashed |
+| 6 | `llm/router.py` | `latency_ms:.0f` crash when `None` | Job crash on first LLM call |
+| 7 | `a2a/protocol.py` | `card.role.value` on `str` type | Agent registration failing |
+| 8 | `mcp/molecular_server.py` | `get_canonical_smiles` ignored `name` key | Cat-A SMILES lookups failed |
+| 9 | `agents/base_agent.py` | No Mermaid format injection for Cat-C tasks | KG tasks always 0% |
+
+See [`bug_audit.md`](bug_audit.md) for full root cause analysis with code diffs.
 
 ---
 
