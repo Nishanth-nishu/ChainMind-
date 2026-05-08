@@ -71,6 +71,9 @@ class TaskRequest(BaseModel):
     source_agent: str
     query: str
     task_id: str = "default"
+    # A2A routing fields — used by OrchestratorAgent when delegating to specialists
+    parent_task_id: Optional[str] = None   # traceability: which parent task spawned this
+    target_agent: Optional[str] = None     # A2A: which specialist role to route to
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class TaskResponse(BaseModel):

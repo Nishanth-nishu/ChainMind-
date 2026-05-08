@@ -194,7 +194,7 @@ class OrchestratorAgent(IAgent):
                         source_agent=self._agent_id,
                         target_agent=target_role,
                         query=sub_query,
-                        context=task.context,
+                        # context is passed separately to route_task() as AgentContext arg
                     )
                     result = await self._agent_registry.route_task(sub_task, context)
                     sub_results.append(result)
