@@ -509,6 +509,7 @@ What went wrong and what should be done differently? Be concise."""
             response = await self._llm_router.generate(
                 LLMRequest(
                     messages=[LLMMessage(role="user", content=reflect_prompt)],
+                    system_prompt=self._build_system_prompt(),  # Fix: was missing system_prompt
                     temperature=0.2,
                     max_tokens=512,
                 )

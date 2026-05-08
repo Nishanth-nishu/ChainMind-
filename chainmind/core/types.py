@@ -12,6 +12,11 @@ class LLMRequest(BaseModel):
     messages: List[LLMMessage]
     temperature: float = 0.0
     max_tokens: int = 2048
+    # system_prompt is injected as the leading {"role":"system"} message by LocalProvider.
+    # base_agent.py builds a ReAct specialist prompt and passes it here.
+    # Without this field, Pydantic silently drops the kwarg → model gets default Qwen prompt.
+    system_prompt: Optional[str] = None
+    stop_sequences: List[str] = Field(default_factory=list)
 
 class LLMResponse(BaseModel):
     content: str
