@@ -364,6 +364,359 @@ vLLM sampling: temperature varies per experiment (0.1–0.5 range)
                Reduce temperature for more deterministic results at slight cost to creativity.
 
 For paper submission, re-run each experiment 3 times and report mean ± std.
+
 ================================================================================
-END OF CONTEXT FILE
+11. FINE-TUNING RESEARCH PLAN (Exp009 onwards)
+    Deep Research: Datasets × Methods × Resources for ChainMind Publication
+================================================================================
+
+GOAL: Fine-tune Qwen2.5-7B-Instruct so it achieves higher TSR on ChainMind-bench
+      than any prompting strategy alone. This "ChainMind-FT" vs "ChainMind-base"
+      comparison is a strong NeurIPS/ICML AI4Science contribution.
+
+HARDWARE AVAILABLE:
+  GPU:  NVIDIA RTX 3090 (24GB VRAM) on gnode118, SLURM
+  RAM:  ~30GB CPU RAM per SLURM node (with --mem-per-cpu=3G x 10)
+  Disk: /scratch/nishanth.r/ (1TB)
+  Base: Qwen/Qwen2.5-7B-Instruct (15GB weights, already at hf_cache)
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION A: DATASETS (Ranked by relevance to ChainMind-bench)
+────────────────────────────────────────────────────────────────────────────────
+
+TIER 1 — DIRECTLY RELEVANT (use first)
+────────────────────────────────────────
+
+[DS-01] Mol-Instructions  ★★★★★  PRIMARY DATASET
+  Source: Fang et al., NeurIPS 2023. HuggingFace: osunlp/Mol-Instructions
+  Size: ~2.3M instruction-response pairs
+  Tasks covered:
+    - Molecule description generation (SMILES → text)        [Cat-A, Cat-D]
+    - Property prediction (logP, MW, toxicity, ADME)         [Cat-A]
+    - Forward/retro-synthesis reaction prediction             [Cat-D]
+    - Molecule editing (add/remove functional groups)         [Cat-D]
+    - Drug-likeness assessment (Lipinski, QED, SA score)     [Cat-A]
+  Format: {"instruction": "...", "input": "SMILES", "output": "..."}
+  How to use: Filter for property prediction + drug-likeness tasks (~500K)
+  Command:
+    pip install datasets
+    from datasets import load_dataset
+    ds = load_dataset("osunlp/Mol-Instructions", "Molecule-oriented Instructions")
+
+[DS-02] SMolInstruct  ★★★★★  COMPLEMENTARY TO DS-01
+  Source: Wang et al., 2024. HuggingFace: osunlp/SMolInstruct
+  Size: ~3.4M small molecule instruction pairs
+  Tasks: Property prediction, IUPAC naming, SMILES captioning
+  Advantage: More diverse SMILES formats, better for robustness
+  Format: {"input": "<SMILES>CC(=O)O</SMILES> Predict logP", "output": "1.31"}
+
+[DS-03] ToolBench  ★★★★☆  FOR REACT/TOOL-CALLING BEHAVIOR
+  Source: Qin et al., ICLR 2024. HuggingFace: ToolBench/ToolBench
+  Size: ~126K tool-use instruction samples, 16K real APIs
+  Tasks: Multi-step tool calling with ReAct-style reasoning traces
+  Why critical: Our benchmark is 100% tool-calling (ReAct). The base model
+                Qwen2.5 knows chemistry, but struggles to reliably format
+                THOUGHT/ACTION/ACTION_INPUT/FINAL_ANSWER correctly.
+  Filter: Keep chemistry-adjacent APIs (PubChem, Wikipedia chemistry)
+  Format: Full multi-turn JSON with tool call + observation sequences
+
+[DS-04] AgentInstruct (Microsoft, 2024)  ★★★★☆  SYNTHETIC AGENT DATA
+  Source: Yin et al., 2024. arxiv: 2407.03502
+  HuggingFace: microsoft/zetron-agentinstruct-1M-v1
+  Size: 1M synthetic agent instruction examples
+  Tasks: Tool use, web search, code, reading comprehension
+  Why relevant: Improves general agentic reasoning (all 4 benchmark categories)
+  Note: Synthetic but high quality via teacher model distillation
+
+[DS-05] ChemBench  ★★★★☆  EVALUATION + FEW-SHOT
+  Source: Mirza et al., 2024. HuggingFace: jablonkagroup/ChemBench
+  Size: 7000+ expert-level chemistry Q&A
+  Tasks: IUPAC naming, reactions, safety, lab protocols
+  Use as: Evaluation holdout + few-shot examples in SFT data
+
+[DS-06] InstructMol / SciInstruct  ★★★☆☆  SCIENTIFIC INSTRUCTION
+  Source: Wei et al., 2024. HuggingFace: CAMEL-AI/SciInstruct
+  Size: 500K scientific instruction pairs
+  Tasks: General chemistry, physics, biology (mixed)
+  Use as: Domain general pre-SFT warm-up data
+
+TIER 2 — DOMAIN ADAPTATION DATA (secondary, use to enrich)
+───────────────────────────────────────────────────────────
+
+[DS-07] ChEMBL Bioactivity (raw database)
+  Source: EMBL-EBI. Available at ftp.ebi.ac.uk/pub/databases/chembl
+  Size: 2.3M compounds, 19M bioactivity records
+  Use: Generate (SMILES, property) pairs for Cat-A fine-tuning
+  Note: Requires preprocessing — build Q&A pairs from bioactivity data
+
+[DS-08] PubChem BioAssay + Compound Descriptions
+  Source: NCBI PubChem. pubchempy + PubChem REST API
+  Size: 116M compounds with IUPAC names, SMILES, InChI, descriptions
+  Use: Convert compound descriptions into instruction pairs:
+       "Describe the drug-likeness of [compound]" → [computed properties]
+
+[DS-09] OpenBioLLM-Instruct  ★★★☆☆
+  Source: Aaditya Rao, 2024. HuggingFace: aaditya/OpenBioLLM-Llama3-70B
+  Training data: ~3M biomedical instructions (MIMIC, PubMedQA, MedMCQA, etc.)
+  Use: The instruction format is directly applicable. Download their SFT data.
+
+TIER 3 — SYNTHETIC DATA (generate from ChainMind itself)  ★★★★★ MOST NOVEL
+──────────────────────────────────────────────────────────────────────────────
+
+[DS-10] ChainMind Successful Trace Dataset (BUILD THIS OURSELVES)
+  Source: Run 1 results + Run 3 results (currently running)
+  Method:
+    1. From benchmark runs, extract all tasks where TSR=1.0 (passed)
+    2. Save the full reasoning trace (THOUGHT → ACTION → OBSERVATION → FINAL_ANSWER)
+    3. Format as instruction: {"instruction": task.query,
+                               "output": full_successful_trace_as_string}
+    4. This is GOLD DATA specific to our exact benchmark
+  Size estimate: 100 tasks × 8 experiments × 3 runs = ~2400 examples (small but pure)
+  Why powerful: Model learns the exact ReAct format + tool call patterns we need
+  Script to build: scripts/build_sft_dataset.py (to be created)
+
+[DS-11] ChainMind DPO Pair Dataset (PREFERENCE PAIRS)
+  Source: Same benchmark runs
+  Method:
+    - chosen: successful trace (TSR=1.0, no hallucination)
+    - rejected: failed trace for the SAME query (TSR=0.0, hallucination error type)
+  Size: Need at minimum 500 pairs. Run 1 + Run 3 gives enough.
+  Format: {"prompt": task.query, "chosen": good_trace, "rejected": bad_trace}
+  Why powerful: Directly trains model to prefer tool-grounded answers over hallucination
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION B: FINE-TUNING METHODS (Resource-constrained analysis for RTX 3090)
+────────────────────────────────────────────────────────────────────────────────
+
+APPROACH 1: QLoRA SFT with Unsloth  [RECOMMENDED STARTING POINT]
+  Method: Supervised fine-tuning with 4-bit quantized LoRA (QLoRA)
+  Paper: Dettmers et al., QLoRA NeurIPS 2023
+  Library: unsloth (2x faster than HuggingFace PEFT, 60% less VRAM)
+  Config:
+    r=64, lora_alpha=128 (higher ratio = stronger adaptation)
+    target_modules=["q_proj","k_proj","v_proj","o_proj","gate_proj","up_proj","down_proj"]
+    lora_dropout=0.05
+    quant: 4-bit NF4 (nf4) with double quantization
+    gradient_checkpointing=True
+  VRAM estimate: ~12-14GB for Qwen2.5-7B (fits with 10GB headroom)
+  Batch: per_device_train_batch_size=2, gradient_accumulation_steps=8
+  LR: 2e-4 with cosine schedule, warmup 100 steps
+  Epochs: 2-3 (with <50K examples)
+  Training time on RTX 3090: ~2-4 hours for 10K examples
+  Expected TSR gain: +8-15pp over base prompting
+  Publication angle: "SFT on domain-specific traces improves agentic chemistry performance"
+
+  Install:
+    pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+    pip install --no-deps xformers trl peft accelerate bitsandbytes
+
+  Key code pattern:
+    from unsloth import FastLanguageModel
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name="Qwen/Qwen2.5-7B-Instruct",
+        max_seq_length=4096,
+        dtype=None,  # auto-detect
+        load_in_4bit=True,
+    )
+    model = FastLanguageModel.get_peft_model(
+        model, r=64, target_modules=[...], lora_alpha=128, ...
+    )
+
+APPROACH 2: DPO (Direct Preference Optimization)  [AFTER SFT]
+  Method: Contrastive learning on (prompt, chosen, rejected) preference pairs
+  Paper: Rafailov et al., DPO NeurIPS 2023
+  Library: TRL (HuggingFace), DPOTrainer
+  Prerequisites: Need a fine-tuned SFT model first (Approach 1)
+  Data: DS-11 ChainMind DPO Pair Dataset
+  VRAM: ~16-18GB with QLoRA base
+  Config: beta=0.1, learning_rate=1e-5, batch_size=1, grad_accum=16
+  Training time: ~1-2 hours for 500 pairs
+  Expected gain: +5-10pp over SFT alone
+  Publication angle: "Preference learning on benchmark traces aligns model with
+                      deterministic reward signals, reducing hallucination"
+
+  Key advantage: No need for human labelers — our ground_truth_validator IS
+  the preference oracle. This is publishable as "automated preference learning
+  for scientific agents."
+
+APPROACH 3: GRPO (Group Relative Policy Optimization)  [MOST NOVEL/PUBLISHABLE]
+  Method: Reinforcement learning from deterministic reward (like DeepSeek-R1)
+  Paper: Shao et al., DeepSeekMath 2024; Guo et al., DeepSeek-R1 2025
+  Library: TRL >= 0.12.0 (GRPOTrainer), or verl
+  Reward function: Our ground_truth_validator.score_response() — ALREADY EXISTS!
+    score = score_response(task, model_output)["score"]  # 0.0 - 1.0
+  Method:
+    For each query, sample G=8 completions from the policy model
+    Compute reward for each using ground_truth_validator
+    Normalize rewards within the group (no value network needed)
+    Update policy to increase probability of high-reward completions
+  VRAM: ~20-22GB (tight — need all optimizations: gradient checkpointing,
+                    gradient_accumulation=16, flash_attn2)
+  Training time: 8-12 hours for full ChainMind-bench (100 tasks × G=8 = 800 rollouts)
+  Expected gain: +10-20pp over base (this is where RL really shines)
+  Publication angle: "Using deterministic chemistry validators as reward models
+                      for GRPO-based agentic fine-tuning eliminates the need
+                      for human preference annotation" — this is a strong NeurIPS paper!
+
+  VRAM reduction tricks for RTX 3090:
+    - Flash Attention 2 (saves ~4GB)
+    - torch.compile() 
+    - reduce G from 8 to 4
+    - Use vLLM offline for rollout generation (separate process)
+
+APPROACH 4: Full Fine-tuning (NOT RECOMMENDED on RTX 3090)
+  Qwen2.5-7B full fine-tuning requires ~56-80GB VRAM in bf16.
+  RTX 3090 has 24GB — not feasible even with CPU offload for 7B.
+  Skip unless you get access to A100/H100 (request via plafnet2 admin).
+
+APPROACH 5: Prompt Tuning / Prefix Tuning (MINIMAL BASELINE)
+  Only train soft prompt tokens, model frozen.
+  VRAM: <8GB. Quality significantly lower than LoRA.
+  Use only to establish a "parameter-efficient baseline" for the ablation table.
+  Library: PEFT (HuggingFace)
+
+APPROACH 6: Continued Domain Pre-training (OPTIONAL, PRE-SFT)
+  Pre-train on raw chemistry text (ChEMBL docs, PubChem abstracts, arXiv chemistry)
+  before instruction-tuning.
+  Recommended: ONLY if base model shows poor SMILES understanding (unlikely for Qwen2.5)
+  Time: Multi-day. Skip for now.
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION C: RECOMMENDED EXPERIMENT SEQUENCE (Experiments 009-013)
+────────────────────────────────────────────────────────────────────────────────
+
+EXP009: Build SFT Dataset from ChainMind Traces  [DATA PREPARATION]
+  Input:  Results from run_v3 (job 2620713) + run_v1 historical logs
+  Script: scripts/build_sft_dataset.py  (to be created)
+  Steps:
+    1. Parse all result JSONs in results/experiments/
+    2. Extract tasks with TSR=1.0 and their full reasoning traces
+    3. Augment with 5K examples from Mol-Instructions (DS-01) filtered for property tasks
+    4. Augment with 2K examples from ToolBench (DS-03) filtered for chemistry
+    5. Format all as {"instruction": query, "input": "", "output": full_react_trace}
+    6. Save to data/sft_dataset.jsonl
+  Target size: 10K-20K examples (enough for meaningful SFT on 7B)
+
+EXP010: QLoRA SFT — ChainMind-FT-v1  [BASELINE FINE-TUNE]
+  Base model:   Qwen/Qwen2.5-7B-Instruct
+  Data:         data/sft_dataset.jsonl (from EXP009)
+  Method:       QLoRA with Unsloth
+  SLURM script: experiments/exp010_qlora_sft/train.sh
+  Output:       models/chainmind-ft-v1/  (LoRA adapter weights only, ~100MB)
+  Evaluation:   Run ChainMind-bench 100 tasks using merged model via vLLM
+  Expected TSR: 70-82% (depends on data quality)
+  Time on RTX 3090: 3-5 hours
+
+EXP011: DPO Fine-tuning — ChainMind-FT-v2  [PREFERENCE ALIGNMENT]
+  Base model:   models/chainmind-ft-v1/ (from EXP010)
+  Data:         data/dpo_pairs.jsonl (from run_v3 good vs bad traces)
+  Method:       DPO via TRL DPOTrainer
+  SLURM script: experiments/exp011_dpo/train.sh
+  Output:       models/chainmind-ft-v2/
+  Evaluation:   Same 100-task benchmark
+  Expected TSR: 75-87%
+  Time: 1-2 hours
+
+EXP012: GRPO RL — ChainMind-FT-v3  [REINFORCEMENT LEARNING]
+  Base model:   Qwen/Qwen2.5-7B-Instruct (or EXP010 checkpoint)
+  Data:         All 100 ChainMind-bench tasks (training split: 70/30)
+  Reward fn:    ground_truth_validator.score_response() — already implemented!
+  Method:       GRPOTrainer with G=4 completions per prompt
+  SLURM script: experiments/exp012_grpo/train.sh
+  Output:       models/chainmind-ft-v3/
+  Expected TSR: 80-90% (RL with deterministic reward is very effective)
+  Time: 8-12 hours
+  ⭐ This is the MOST NOVEL experiment for publication.
+
+EXP013: Ablation Study + Final Paper Table  [ANALYSIS]
+  Compare all 12 conditions:
+    Prompting strategies (exp001-008): base model, no fine-tuning
+    Fine-tuned model conditions: EXP010 (SFT), EXP011 (SFT+DPO), EXP012 (SFT+GRPO)
+  Generate:
+    - Table 1: TSR by experiment and category
+    - Table 2: Parameter count, training time, VRAM per fine-tuning method
+    - Figure 1: Learning curves (train reward vs validation TSR)
+    - Figure 2: Error taxonomy before/after fine-tuning
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION D: SCRIPTS TO CREATE FOR FINE-TUNING PIPELINE
+────────────────────────────────────────────────────────────────────────────────
+
+scripts/build_sft_dataset.py
+  - Parse results/experiments/ JSONs
+  - Filter TSR=1.0 traces
+  - Download and merge Mol-Instructions subset
+  - Format as JSONL for Unsloth
+  STATUS: NOT YET CREATED
+
+experiments/exp010_qlora_sft/
+  train.py      — Unsloth QLoRA training script
+  train.sh      — SLURM submission (same gnode118 config, 4-day time limit)
+  eval.py       — Load merged model via vLLM, run ChainMind-bench
+  STATUS: NOT YET CREATED
+
+experiments/exp011_dpo/
+  build_pairs.py  — Pair good traces vs bad traces from same prompts
+  train.py        — TRL DPOTrainer script
+  train.sh        — SLURM submission
+  STATUS: NOT YET CREATED
+
+experiments/exp012_grpo/
+  train.py        — GRPOTrainer with ground_truth_validator as reward fn
+  train.sh        — SLURM submission
+  STATUS: NOT YET CREATED
+
+────────────────────────────────────────────────────────────────────────────────
+SECTION E: PRIORITY ORDER & DECISION TREE
+────────────────────────────────────────────────────────────────────────────────
+
+WAIT FOR:     Job 2620713 to complete (run_v3 results with all bug fixes)
+              Expected: ~4-6 hours from submission at 15:28 IST
+
+THEN DECIDE:
+  IF run_v3 TSR > 75%:
+    → Infrastructure is solid. Proceed with EXP009 (data building).
+    → The paper can frame prompting as the main contribution with FT as extension.
+
+  IF run_v3 TSR 65-75%:
+    → Fix remaining Cat-D issues first, then build SFT data.
+    → Fine-tuning is now the main contribution.
+
+  IF run_v3 TSR < 65%:
+    → More infrastructure bugs remain. Debug before fine-tuning.
+
+DO NOT start fine-tuning until run_v3 produces clean results.
+Fine-tuning on a broken benchmark = fine-tuning on noise.
+
+DATASET DOWNLOAD COMMANDS (run these in background while job runs):
+  source /scratch/nishanth.r/sys_elvle_ai/.venv/bin/activate
+  # Download Mol-Instructions (takes ~20 min, 2.3M examples)
+  python3 -c "
+  from datasets import load_dataset
+  import os; os.environ['HF_HOME']='/scratch/nishanth.r/hf_cache'
+  ds = load_dataset('osunlp/Mol-Instructions', 'Molecule-oriented Instructions', split='train')
+  ds.save_to_disk('/scratch/nishanth.r/datasets/mol_instructions')
+  print('Done:', len(ds))
+  "
+
+  # Download SMolInstruct
+  python3 -c "
+  from datasets import load_dataset
+  import os; os.environ['HF_HOME']='/scratch/nishanth.r/hf_cache'
+  ds = load_dataset('osunlp/SMolInstruct', split='train')
+  ds.save_to_disk('/scratch/nishanth.r/datasets/smol_instruct')
+  print('Done:', len(ds))
+  "
+
+  # Download ToolBench (tool-calling traces)
+  python3 -c "
+  from datasets import load_dataset
+  import os; os.environ['HF_HOME']='/scratch/nishanth.r/hf_cache'
+  ds = load_dataset('ToolBench/ToolBench', split='train')
+  ds.save_to_disk('/scratch/nishanth.r/datasets/toolbench')
+  print('Done:', len(ds))
+  "
+
+================================================================================
+END OF CONTEXT FILE — LAST UPDATED: 2026-05-08
 ================================================================================
