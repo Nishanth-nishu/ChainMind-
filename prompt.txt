@@ -205,6 +205,24 @@ ROOT CAUSE 8 — LocalProvider missing served_model_name kwarg  [FIXED]
   but the reconstructed __init__ only took base_url.
   Fix applied: Added all three kwargs to LocalProvider.__init__.
 
+ROOT CAUSE 9 — router.py latency_ms format crash kills ALL successful responses  [FIXED]
+  router.py line 176: f"({response.latency_ms:.0f}ms)" crashes when latency_ms is None.
+  This is caught by `except Exception` and re-raised as LLMAllProvidersFailedError,
+  meaning every successful vLLM API call (200 OK) was silently discarded as a failure.
+  Fix applied: (response.latency_ms or 0):.0f
+  File: chainmind/llm/router.py
+  Git: commit 9241ae0
+
+ROOT CAUSE 10 — A2A registry crashes on AgentCard.role being a str not Enum  [FIXED]
+  protocol.py line 58: card.role.value.lower() fails because role is str, not Enum.
+  Fix applied: role_key = (role_raw.value if hasattr(role_raw, 'value') else str(role_raw)).lower()
+  File: chainmind/a2a/protocol.py
+  Git: commit 9241ae0
+
+CURRENT ACTIVE RUN: SLURM Job 2620713 (submitted 2026-05-08 15:28 IST)
+  Monitor: tail -f /scratch/nishanth.r/sys_elvle_ai/run_v3/slurm_logs/run_v3_2620713.log
+  Expected TSR: ~74-79% (Cat-C fix + tool bug fix + router crash fix)
+
 ────────────────────────────────────────────────────────────────────────────────
 6. WHAT NEEDS TO BE DONE NEXT (Prioritized)
 ────────────────────────────────────────────────────────────────────────────────
