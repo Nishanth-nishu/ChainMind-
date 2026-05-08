@@ -55,7 +55,9 @@ class AgentRegistry:
         """Register an agent using its AgentCard role as the routing key."""
         try:
             card: AgentCard = agent.agent_card
-            role_key = card.role.value.lower()
+            # card.role may be a plain str or an Enum — handle both gracefully
+            role_raw = card.role
+            role_key = (role_raw.value if hasattr(role_raw, "value") else str(role_raw)).lower()
             self._agents[role_key] = agent
             logger.info(f"A2A: Registered '{card.name}' as '{role_key}'")
         except Exception as e:
