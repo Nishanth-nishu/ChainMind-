@@ -1,0 +1,351 @@
+================================================================================
+  CHAINMIND RESEARCH PLATFORM — PROJECT CONTEXT FILE
+  Purpose: This file is the authoritative memory for any LLM continuing work
+           on this project. Read it completely before making any changes.
+  Updated: 2026-05-08
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+1. PROJECT OVERVIEW
+────────────────────────────────────────────────────────────────────────────────
+
+ChainMind is an agentic AI framework for autonomous drug discovery research,
+benchmarked against top-tier AI for Science conference standards (NeurIPS,
+ICML). The core claim: multi-agent ReAct-style reasoning outperforms single-shot
+LLM responses on pharmaceutical chemistry tasks.
+
+Goal: Publish a rigorous benchmarking study comparing 8 agentic strategies
+      across 4 task categories (molecular property, literature, KG, multi-step).
+
+Platform: SLURM cluster, gnode118, 1x NVIDIA RTX 3090 (24GB VRAM)
+Model:    Qwen/Qwen2.5-7B-Instruct served via vLLM on port 8100
+Workspace: /scratch/nishanth.r/sys_elvle_ai/
+
+────────────────────────────────────────────────────────────────────────────────
+2. DIRECTORY STRUCTURE
+────────────────────────────────────────────────────────────────────────────────
+
+/scratch/nishanth.r/sys_elvle_ai/
+├── chainmind/                     # Core framework package
+│   ├── agents/
+│   │   ├── base_agent.py          # ReAct loop (15 steps max), tool dispatch
+│   │   ├── orchestrator.py        # Multi-agent orchestration
+│   │   └── specialists.py         # ComputationalChemistAgent, WebResearchAgent, etc.
+│   ├── config/
+│   │   └── settings.py            # Pydantic-settings. CRITICAL: set ENVIRONMENT=development
+│   │                              # in SLURM or it rejects the env var "BATCH" → crash
+│   ├── core/
+│   │   ├── types.py               # ALL Pydantic models (reconstructed — see mistakes)
+│   │   ├── interfaces.py          # Abstract base classes (ILLMProvider, IMCPServer, etc.)
+│   │   └── exceptions.py          # Custom exceptions (LLMAllProvidersFailedError, etc.)
+│   ├── llm/
+│   │   ├── local_provider.py      # Reconstructed. Wraps vLLM via openai SDK.
+│   │   │                          # __init__ params: base_url, model_id, served_model_name
+│   │   ├── router.py              # LLMRouter: circuit breaker + fallback chain
+│   │   └── circuit_breaker.py     # Exponential backoff circuit breaker
+│   ├── mcp/
+│   │   ├── molecular_server.py    # Tools: assess_lipinski_rules, get_canonical_smiles
+│   │   │                          # BUG FIXED: now accepts "name" OR "query" key
+│   │   └── research_server.py     # Tool: web_search (via DuckDuckGo)
+│   └── eval/
+│       ├── benchmarks/
+│       │   ├── chainmind_bench.json        # 100-task benchmark (A:40, B:30, C:15, D:15)
+│       │   └── ground_truth_validator.py   # Deterministic scoring per category
+│       └── dataset.py
+├── experiments/
+│   ├── shared/
+│   │   ├── base_experiment.py     # BaseExperiment: run(), grade_result(), etc.
+│   │   └── run_template.py        # run_experiment() entry point
+│   ├── exp001_reflexion/          # Reflexion (Shinn et al., NeurIPS 2023)
+│   ├── exp002_self_consistency/   # Self-Consistency CoT (Wang et al., ICML 2022)
+│   ├── exp003_cove/               # Chain-of-Verification (Dhuliawala et al., Meta AI 2023)
+│   ├── exp004_few_shot/           # Few-shot prompting (Bran et al., ChemCrow NeurIPS 2023)
+│   ├── exp005_tool_rag/           # ToolLLM + RAG (Qin et al., ICLR 2024)
+│   ├── exp006_structured_output/  # JSON-constrained output (Willard & Louf 2023)
+│   ├── exp007_chem_rag/           # Chem-domain RAG (Lewis et al., NeurIPS 2020)
+│   └── exp008_debate/             # Multi-agent Debate (Du et al., ICML 2023)
+├── scripts/
+│   ├── run_all_experiments.sh     # Runs all 8 exps; use --full for 100 tasks
+│   ├── start_vllm_optimized.sh    # Starts vLLM on port 8100
+│   └── compare_experiments.py     # Generates markdown comparison table
+├── data/                          # ChromaDB vector store for RAG experiments
+├── results/                       # Output JSONs per experiment
+│   └── experiments/
+│       └── exp00X_*/result_*.json
+├── logs/                          # Detailed per-task logs
+├── run_v2/                        # Second benchmark run (has bugs — see audit)
+├── run_v3/                        # Third benchmark run (use this going forward)
+├── run_full_selfcontained.sh      # ★ MAIN SCRIPT: Submit this for a clean run
+├── bash_jepa_118.sh               # Reference SLURM template (gnode118, plafnet2)
+├── .venv/                         # Python virtual environment (on scratch)
+├── .env                           # Environment variables (not committed)
+└── prompt.txt                     # ← THIS FILE
+
+Model weights location:
+    /scratch/nishanth.r/hf_cache/hub/models--Qwen--Qwen2.5-7B-Instruct  (15GB, confirmed)
+
+Home directory symlinks (to save space — home2 quota is 30GB):
+    ~/.cache  → /scratch/nishanth.r/.home_cache_migration
+    ~/.gemini → /scratch/nishanth.r/.home_data_migration/.gemini
+    ~/.local  → /scratch/nishanth.r/.home_data_migration/.local
+
+────────────────────────────────────────────────────────────────────────────────
+3. BENCHMARK TASK CATEGORIES
+────────────────────────────────────────────────────────────────────────────────
+
+Category A — Molecular Property (40 tasks)
+  Input: SMILES string + question about drug-likeness / logP / MW / etc.
+  Scoring: ±5% numerical tolerance against RDKit reference values
+  Tools needed: assess_lipinski_rules, get_canonical_smiles
+
+Category B — Literature Retrieval (30 tasks)
+  Input: "Find papers about X"
+  Scoring: keyword recall ≥ 0.6 from expected keyword list
+  Tools needed: web_search (DuckDuckGo via research_server.py)
+
+Category C — Knowledge Graph Generation (15 tasks)
+  Input: "Create a knowledge graph of metabolic pathways for compound X"
+  Scoring: (1) Response contains ```mermaid code block,
+           (2) ≥ N edges extracted, (3) required_concepts present
+  Tools needed: NONE — this is a pure generation task
+  ⚠️  CRITICAL: The model must output a properly formatted Mermaid diagram.
+               ComputationalChemistAgent's system prompt DOES NOT instruct the
+               model to produce Mermaid syntax for KG tasks → 0% Cat-C in run_v2.
+
+Category D — Multi-Step Reasoning (15 tasks)
+  Input: Multi-step compound analysis (combine A + B reasoning)
+  Scoring: Composite score; ALL steps must pass their sub-threshold
+  Tools needed: assess_lipinski_rules + web_search
+
+────────────────────────────────────────────────────────────────────────────────
+4. BENCHMARK RESULTS HISTORY
+────────────────────────────────────────────────────────────────────────────────
+
+RUN 1 (interactive, ~May 1 2026) — sys_elvle_ai/results/experiments/
+  Best: exp004_few_shot TSR=79.0%
+  Table:
+  | Rank | Experiment              | TSR%  | Cat-A | Cat-B | Cat-C | Cat-D |
+  |------|-------------------------|-------|-------|-------|-------|-------|
+  | 1    | exp004_few_shot         | 79.0% | 65.0  | 100.0 | 60.0  | 93.3  |
+  | 2    | exp006_structured_output| 78.0% | 67.5  | 90.0  | 73.3  | 86.7  |
+  | 3    | exp003_cove             | 77.0% | 60.0  | 100.0 | 73.3  | 80.0  |
+  | 4    | exp007_chem_rag         | 77.0% | 60.0  | 93.3  | 66.7  | 100.0 |
+  | 5    | exp001_reflexion        | 76.0% | 62.5  | 93.3  | 73.3  | 80.0  |
+  | 6    | exp008_debate           | 75.0% | 75.0  | —     | —     | —     |
+  | 7    | exp005_tool_rag         | 74.0% | 60.0  | 93.3  | 60.0  | 86.7  |
+  | 8    | exp002_self_consistency | 71.0% | 50.0  | 96.7  | 66.7  | 80.0  |
+  Note: exp008_debate only ran 20 tasks due to being interrupted.
+
+RUN 2 (SLURM, Job 2618031, May 3 2026) — run_v2/results/experiments/
+  Best: exp001_reflexion TSR=60.0%
+  Table:
+  | Rank | Experiment              | TSR%  | Cat-A | Cat-B | Cat-C | Cat-D |
+  |------|-------------------------|-------|-------|-------|-------|-------|
+  | 1    | exp001_reflexion        | 60.0% | 62.5  | 83.3  | 0.0   | 66.7  |
+  | 2    | exp004_few_shot         | 59.0% | 57.5  | 86.7  | 0.0   | 66.7  |
+  | 3    | exp007_chem_rag         | 57.0% | 57.5  | 86.7  | 0.0   | 53.3  |
+  | 4    | exp003_cove             | 56.0% | 55.0  | 86.7  | 0.0   | 53.3  |
+  | 5    | exp006_structured_output| 56.0% | 57.5  | 83.3  | 0.0   | 53.3  |
+  | 6    | exp002_self_consistency | 55.0% | 60.0  | 83.3  | 0.0   | 40.0  |
+  | 7    | exp005_tool_rag         | 55.0% | 55.0  | 86.7  | 0.0   | 46.7  |
+  | 8    | exp008_debate           | 39.0% | 42.5  | 56.7  | 0.0   | 33.3  |
+  ⚠️ ALL Cat-C scores are 0.0%. This is a known bug — see Section 5.
+
+────────────────────────────────────────────────────────────────────────────────
+5. AUDIT: WHY RUN 2 WAS WORSE (Root Cause Analysis)
+────────────────────────────────────────────────────────────────────────────────
+
+PROBLEM: TSR dropped from ~77% (Run 1 best) to ~60% (Run 2 best). All Cat-C = 0.
+
+ROOT CAUSE 1 — `get_canonical_smiles` tool parameter name mismatch  [FIXED]
+  The model sends: {"name": "Aspirin"}
+  The tool read:   args.get("query", "")  → empty string → PubChem crash
+  Error seen in logs: "identifier/cid cannot be None"
+  Fix applied: molecular_server.py now accepts "query" OR "name" OR "compound"
+  File: chainmind/mcp/molecular_server.py
+
+ROOT CAUSE 2 — Category C scored 0.0% in ALL experiments  [NEEDS FIX]
+  Cat-C tasks require the model to produce a ```mermaid knowledge graph block.
+  The ComputationalChemistAgent system prompt only knows about molecular tools.
+  It has no instruction to produce Mermaid syntax for KG tasks.
+  In Run 1, the orchestrator may have routed Cat-C tasks to a KnowledgeGraphAgent
+  or the system prompt had explicit Mermaid formatting instructions.
+  Fix needed: Add Mermaid KG instructions to the agent system prompt, OR
+              create a dedicated KnowledgeGraphAgent that wraps the LLM with
+              a prompt that enforces ```mermaid output for graph tasks.
+
+ROOT CAUSE 3 — SLURM's $ENVIRONMENT variable crashes Settings()  [FIXED]
+  SLURM sets the variable ENVIRONMENT=BATCH automatically.
+  Pydantic-settings reads this and fails validation:
+    "Input should be 'development', 'staging' or 'production'"
+  Fix applied: All SLURM scripts now export ENVIRONMENT="development" explicitly.
+  File: run_full_selfcontained.sh, run_v2/run_full_v2.sh
+
+ROOT CAUSE 4 — run_v2 workspace was missing the data/ folder  [PARTIALLY FIXED]
+  run_v2 was created with `cp -r chainmind/ experiments/ scripts/` but NOT data/.
+  The data/ folder contains the ChromaDB vector store used by RAG experiments
+  (exp005_tool_rag, exp007_chem_rag).
+  Fix needed: Copy or symlink data/ into any new run workspace.
+
+ROOT CAUSE 5 — exp008_debate had TaskResponse.error missing  [FIXED]
+  The original types.py reconstruction omitted the `error` field on TaskResponse.
+  Fix applied: Added `error: Optional[str] = None` to TaskResponse in types.py.
+
+ROOT CAUSE 6 — AgentContext missing conversation_history  [FIXED]
+  base_agent.py reads context.conversation_history but it wasn't in the Pydantic model.
+  Fix applied: Added `conversation_history: List[LLMMessage] = Field(default_factory=list)`
+
+ROOT CAUSE 7 — MCPToolResult had `output` field, code expected `result` + `success`  [FIXED]
+  The reconstructed types.py used `output: str` but base_agent.py reads
+  `tool_result.result` and `tool_result.success`.
+  Fix applied: Changed to `result: Any`, `success: bool = True`.
+
+ROOT CAUSE 8 — LocalProvider missing served_model_name kwarg  [FIXED]
+  router.py calls LocalProvider(model_id=..., base_url=..., served_model_name=...)
+  but the reconstructed __init__ only took base_url.
+  Fix applied: Added all three kwargs to LocalProvider.__init__.
+
+────────────────────────────────────────────────────────────────────────────────
+6. WHAT NEEDS TO BE DONE NEXT (Prioritized)
+────────────────────────────────────────────────────────────────────────────────
+
+PRIORITY 1 — Fix Category C (Knowledge Graph) scoring [CRITICAL]
+  The agent system prompt needs explicit instructions for Mermaid KG generation.
+  Options:
+    A) Add a preamble to the ReAct system prompt:
+       "For knowledge graph tasks, produce a ```mermaid graph TD block with
+       at least 5 labeled edges using --> notation."
+    B) Detect KG tasks by query keywords ("knowledge graph", "pathway", "network")
+       and switch to a dedicated KnowledgeGraphAgent with a generation-focused prompt.
+  Expected impact: +9–11 percentage points on overall TSR.
+
+PRIORITY 2 — Run exp008_debate for full 100 tasks [IMPORTANT]
+  In Run 1 it only completed 20 tasks. Full 100-task run needed for valid comparison.
+
+PRIORITY 3 — Ensure data/ folder is copied to any new workspace [IMPORTANT]
+  The ChromaDB vector store must be available for RAG experiments.
+  Consider creating a symlink: run_v3/data -> /scratch/nishanth.r/sys_elvle_ai/data
+
+PRIORITY 4 — Ablation: try larger context window (16k vs 8k)
+  Current: local_vllm_max_model_len=16384 in settings but vLLM launched with 8192.
+  Fix: Ensure start_vllm_optimized.sh passes --max-model-len 16384.
+
+PRIORITY 5 — Add structured output enforcement for Cat-C
+  Use vLLM's JSON/grammar-guided decoding to force valid Mermaid syntax output.
+  This is the approach in exp006_structured_output but should be applied to Cat-C.
+
+PRIORITY 6 — Publication readiness
+  Target venue: NeurIPS 2024 AI for Science workshop (or ICML 2025 AI4Drug)
+  Need: At least 3 experiments with TSR > 75%, ablation study, error taxonomy table
+  Current gap: Run 1 data has 5 experiments > 74%, but Run 2 bugs need fixing first.
+
+────────────────────────────────────────────────────────────────────────────────
+7. KEY CODE PATTERNS AND GOTCHAS
+────────────────────────────────────────────────────────────────────────────────
+
+SLURM ENVIRONMENT BUG:
+  Always add `export ENVIRONMENT="development"` before calling any Python that
+  imports chainmind.config.settings.Settings.
+
+VENV ACTIVATION:
+  source /scratch/nishanth.r/sys_elvle_ai/.venv/bin/activate
+
+PYTHONPATH:
+  export PYTHONPATH=/scratch/nishanth.r/sys_elvle_ai
+
+VLLM SERVER CHECK:
+  curl -sf http://localhost:8100/v1/models
+
+MODEL WEIGHTS LOCATION:
+  /scratch/nishanth.r/hf_cache/hub/models--Qwen--Qwen2.5-7B-Instruct  (15GB)
+  HF_HOME must be /scratch/nishanth.r/hf_cache
+
+RUNNING EXPERIMENTS MANUALLY:
+  cd /scratch/nishanth.r/sys_elvle_ai
+  source .venv/bin/activate
+  export PYTHONPATH=.
+  export ENVIRONMENT=development
+  bash scripts/run_all_experiments.sh --full --start-from 1
+
+SUBMITTING VIA SLURM:
+  cd /scratch/nishanth.r/sys_elvle_ai
+  mkdir -p run_v3/slurm_logs
+  sbatch run_full_selfcontained.sh
+  # Monitor: tail -f run_v3/slurm_logs/run_v3_<JOBID>.log
+
+GIT REMOTE:
+  https://github.com/Nishanth-nishu/ChainMind-.git
+  Branch: master
+  Push: git push -u origin master
+
+LLM PROVIDER CHAIN:
+  Settings.llm_fallback_chain = [LLMProvider.LOCAL]
+  Only vLLM (local) is used. OpenAI is commented out.
+  LocalProvider init: (base_url, model_id, served_model_name) — all three required.
+
+TOOL PARAMETER GOTCHA:
+  The Qwen model sends {"name": "Aspirin"} for compound lookup.
+  The tool MUST accept "name" as an alias for "query".
+  Fixed in molecular_server.py: args.get("query","") or args.get("name","")
+
+PYDANTIC MODEL FIELDS (types.py) — reconstructed, must have all of these:
+  MCPToolResult:   result: Any, success: bool = True, error: Optional[str]
+  MCPToolDefinition: name, description, parameters, required_params: List[str]
+  AgentCard:       name, description, role, capabilities: List[str], tools: List[str]
+                   agent_id is a @property: name.lower().replace(" ", "_")
+  LLMResponse:     content: str, usage: Optional[Dict], latency_ms: Optional[float]
+  TaskResponse:    task_id, source_agent, status, result, error, reasoning_trace, latency_ms
+  AgentContext:    session_id, metadata, conversation_history: List[LLMMessage]
+
+────────────────────────────────────────────────────────────────────────────────
+8. STORAGE LAYOUT (Home vs Scratch)
+────────────────────────────────────────────────────────────────────────────────
+
+HOME (/home2/nishanth.r) — 30GB quota, currently ~5.5GB used
+  ~/.cache     → symlink → /scratch/nishanth.r/.home_cache_migration   (was 25GB!)
+  ~/.gemini    → symlink → /scratch/nishanth.r/.home_data_migration/.gemini
+  ~/.local     → symlink → /scratch/nishanth.r/.home_data_migration/.local
+
+SCRATCH (/scratch/nishanth.r) — 1000GB, no quota issues
+  .home_cache_migration/   — moved from ~/.cache (HuggingFace, pip, etc.)
+  .home_data_migration/    — moved from ~/.gemini and ~/.local
+  hf_cache/                — HuggingFace model weights (15GB Qwen)
+  sys_elvle_ai/            — Main project workspace
+  chainmind_benchmark_v2/  — Leftover from attempted workspace copy (ignore)
+
+────────────────────────────────────────────────────────────────────────────────
+9. EXPERIMENT ARCHITECTURE SUMMARY
+────────────────────────────────────────────────────────────────────────────────
+
+All experiments use:
+  - Qwen/Qwen2.5-7B-Instruct via vLLM (port 8100, served as "chainmind-qwen")
+  - ReAct loop in base_agent.py (max 15 steps)
+  - MolecularMCPServer (RDKit + PubChem)
+  - ResearchMCPServer (DuckDuckGo)
+  - BaseExperiment.run() in experiments/shared/base_experiment.py
+  - Ground truth scoring in chainmind/eval/benchmarks/ground_truth_validator.py
+
+Experiments differ in their PROMPTING STRATEGY only:
+  exp001_reflexion:         Self-evaluation + iterative reflection
+  exp002_self_consistency:  5 parallel samples, majority vote
+  exp003_cove:              Chain-of-verification with self-critique
+  exp004_few_shot:          3-shot in-context examples in system prompt
+  exp005_tool_rag:          RAG over tool documentation before calling
+  exp006_structured_output: JSON-constrained output format
+  exp007_chem_rag:          RAG over chemistry literature (ChromaDB)
+  exp008_debate:            Two independent agents + judge resolver
+
+────────────────────────────────────────────────────────────────────────────────
+10. REPRODUCIBILITY NOTES
+────────────────────────────────────────────────────────────────────────────────
+
+Random seeds: RDKit seeded at 42 in ComputationalChemistAgent
+Determinism: Categorical metrics (A, C) are fully deterministic (RDKit)
+             Lexical metrics (B, D) depend on web search results → can vary ±2-3%
+vLLM sampling: temperature varies per experiment (0.1–0.5 range)
+               Reduce temperature for more deterministic results at slight cost to creativity.
+
+For paper submission, re-run each experiment 3 times and report mean ± std.
+================================================================================
+END OF CONTEXT FILE
+================================================================================

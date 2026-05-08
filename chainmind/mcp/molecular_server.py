@@ -50,7 +50,10 @@ class MolecularMCPServer(IMCPServer):
                 return MCPToolResult(result=json.dumps(res), success=True)
                 
             elif tool_name == "get_canonical_smiles":
-                query = args.get("query", "")
+                # Accept both 'query' and 'name' keys — model sends either depending on prompt
+                query = args.get("query", "") or args.get("name", "") or args.get("compound", "")
+                if not query:
+                    return MCPToolResult(result="", success=False, error="No compound name provided. Pass {\"query\": \"compound name\"}")
                 compounds = pcp.get_compounds(query, 'name')
                 if not compounds:
                     return MCPToolResult(result="", success=False, error=f"Compound not found for query: {query}")

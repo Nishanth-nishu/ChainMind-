@@ -313,6 +313,31 @@ class BaseAgent(IAgent):
                 "Do NOT call any more tools."
             )
 
+        # Detect knowledge graph tasks and inject Mermaid formatting instructions
+        # This is the fix for Cat-C scoring 0.0% — the model needs to know it
+        # should produce a ```mermaid block with graph TD edges.
+        kg_keywords = ("knowledge graph", "pathway", "interaction network",
+                       "metabolic network", "signaling", "graph of", "drug network")
+        task_text = " ".join(m.content for m in messages[-2:]).lower()
+        is_kg_task = any(kw in task_text for kw in kg_keywords)
+
+        kg_instruction = ""
+        if is_kg_task:
+            kg_instruction = """
+
+KNOWLEDGE GRAPH TASK DETECTED:
+Your FINAL_ANSWER MUST include a Mermaid diagram using this exact format:
+```mermaid
+graph TD
+    NodeA --> NodeB
+    NodeB --> NodeC
+    NodeA --> NodeD
+```
+Include at least 5 labeled edges (-->). Each node must be a meaningful concept
+from the domain (compound name, pathway, target, reaction, etc.).
+Do NOT skip the ```mermaid block — it is required for this task type.
+"""
+
         return f"""You are a specialist AI agent. Use the ReAct pattern to solve the task.
 
 ## Available Tools
@@ -326,7 +351,7 @@ class BaseAgent(IAgent):
 
 ## Instructions (Step {step}/{self._max_steps})
 Think step-by-step about what to do next.
-
+{kg_instruction}
 CRITICAL RULES AGAINST HALLUCINATION:
 1. You MUST NOT use your internal knowledge to answer the user's question directly.
 2. Your FINAL_ANSWER MUST be exactly derived from the Tool Results. If a tool fails, report the failure, do not make up an answer.
