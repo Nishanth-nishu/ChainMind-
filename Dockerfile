@@ -38,8 +38,8 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Upgrade pip + wheel
-RUN pip install --upgrade pip setuptools wheel
+# Upgrade pip + wheel + build tools
+RUN pip install --upgrade pip setuptools wheel psutil ninja packaging
 
 # ── PyTorch 2.3.0 with CUDA 12.1 ────────────────────────────────────────────
 # Must install before flash-attn (depends on torch version)
